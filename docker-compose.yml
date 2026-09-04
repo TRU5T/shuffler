@@ -1,0 +1,33 @@
+services:
+  shuffler:
+    build: .
+    image: shuffler:latest
+    container_name: shuffler
+    restart: unless-stopped
+    ports:
+      - "8756:8756"
+    volumes:
+      # The SQLite database: scans, the queue and connection settings.
+      - ./data:/config
+
+      # Bind each data disk in individually and keep the same name inside the
+      # container. Do NOT mount /mnt/user: moving data between disks through
+      # the fuse share can destroy files, and Shuffler refuses those paths
+      # anyway. Add or remove lines to match your array.
+      - /mnt/disk1:/mnt/disk1
+      - /mnt/disk2:/mnt/disk2
+      - /mnt/disk3:/mnt/disk3
+      - /mnt/disk4:/mnt/disk4
+      # - /mnt/disk5:/mnt/disk5
+    environment:
+      # Disks are bind-mounted, so read them directly.
+      SHUFFLER_STORAGE_BACKEND: local
+      SHUFFLER_MOUNT_ROOT: /mnt
+      SHUFFLER_DB_PATH: /config/shuffler.db
+
+      # Start in dry-run mode. A live run always needs explicit confirmation,
+      # but leaving this on means an accidental Start cannot write anything.
+      SHUFFLER_DRY_RUN: "true"
+
+      # Keep 10 GiB free on every disk; jobs that would breach it are flagged.
+      SHUFFLER_RESERVE_BYTES: "10737418240"
