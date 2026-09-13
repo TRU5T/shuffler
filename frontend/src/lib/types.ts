@@ -128,6 +128,25 @@ export interface QueuePlan {
   blocked_reasons: string[];
 }
 
+export interface Suggestion {
+  source_relpath: string;
+  source_name: string;
+  from_disk: string;
+  target_disk: string;
+  move_bytes: number;
+  move_files: number;
+  disks_after: Record<string, DiskProjection>;
+  spread_improvement: number;
+}
+
+export interface SuggestionSet {
+  balanced: boolean;
+  headline: string;
+  spread_bytes: number;
+  mean_free_bytes: number;
+  suggestions: Suggestion[];
+}
+
 export interface PreviewResponse {
   source_relpath: string;
   target_disk: string;

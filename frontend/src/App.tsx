@@ -8,6 +8,7 @@ import { DuplicatesView } from "@/components/DuplicatesView";
 import { ExecutionPanel } from "@/components/ExecutionPanel";
 import { QueuePanel } from "@/components/QueuePanel";
 import { RunDialog } from "@/components/RunDialog";
+import { SuggestionsStrip } from "@/components/SuggestionsStrip";
 import { TopBar, type View } from "@/components/TopBar";
 import { TreeBrowser } from "@/components/TreeBrowser";
 import { Badge } from "@/components/ui/Badge";
@@ -73,13 +74,16 @@ export default function App() {
     }
   }, [lastEvent]);
 
+  // Any successful scan — banner, top bar, or otherwise — matches the disks
+  // again, so suggestions can come back.
+  useEffect(() => {
+    setIndexStale(false);
+  }, [scan?.id]);
+
   const doRescan = () => {
     if (!scan) return;
     rescan.mutate(scan.root, {
-      onSuccess: () => {
-        setIndexStale(false);
-        toast.success("Index rebuilt");
-      },
+      onSuccess: () => toast.success("Index rebuilt"),
       onError: (error) => toast.error("Rescan failed", String(error)),
     });
   };
@@ -128,6 +132,8 @@ export default function App() {
             selectedDisk={selectedDisk}
             onSelectDisk={setSelectedDisk}
           />
+
+          {scan && !indexStale && <SuggestionsStrip enabled={Boolean(scan) && !running} />}
 
           {indexStale && (
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-4 py-3">

@@ -56,6 +56,10 @@ LAYOUT: list[tuple[str, str, int]] = [
     ("disk4", "movies/Sicario (2015)/Sicario.mkv", 9 * GB),
     ("disk2", "movies/Arrival (2016)/poster.jpg", 240 * 1024),
     ("disk3", "movies/Arrival (2016)/poster.jpg", 240 * 1024),
+    # A show that lives wholly on one disk, sized so it can rebalance without
+    # overshooting the empty disk — the balance-suggestion happy path.
+    ("disk3", "tv shows/Samurai Champloo/Season 01/S01E01.mkv", 3500 * MB),
+    ("disk3", "tv shows/Samurai Champloo/Season 01/S01E02.mkv", 3400 * MB),
     # A folder already fully consolidated, which should report nothing to do.
     ("disk4", "music/Miles Davis/Kind of Blue/01 So What.flac", 220 * MB),
     ("disk4", "music/Miles Davis/Kind of Blue/02 Freddie Freeloader.flac", 240 * MB),

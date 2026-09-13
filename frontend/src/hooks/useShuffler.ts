@@ -15,6 +15,7 @@ export const keys = {
   fragmented: (under: string) => ["fragmented", under] as const,
   queue: ["queue"] as const,
   execution: ["execution"] as const,
+  suggestions: (exclude: string[]) => ["suggestions", ...exclude] as const,
 };
 
 /** Everything derived from the scan index, invalidated together after a scan. */
@@ -26,6 +27,7 @@ function invalidateScanViews(client: QueryClient) {
   client.invalidateQueries({ queryKey: keys.scan });
   client.invalidateQueries({ queryKey: keys.scans });
   client.invalidateQueries({ queryKey: keys.disks });
+  client.invalidateQueries({ queryKey: ["suggestions"] });
 }
 
 export function useHealth() {
@@ -91,6 +93,26 @@ export function useFragmented(under: string, enabled = true) {
   });
 }
 
+export function useSuggestions(exclude: string[], enabled = true) {
+  return useQuery({
+    queryKey: keys.suggestions(exclude),
+    queryFn: () => api.suggestions(exclude),
+    enabled,
+    retry: false,
+  });
+}
+
+export function useHideSuggestion() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (relpath: string) => api.hideSuggestion(relpath),
+    onSuccess: (data) => {
+      client.setQueryData(keys.suggestions([]), data);
+      client.invalidateQueries({ queryKey: ["suggestions"] });
+    },
+  });
+}
+
 /** Server-side preview of a candidate job, stacked on top of the current queue. */
 export function usePreview(source: string | null, target: string | null) {
   return useQuery({
@@ -136,6 +158,7 @@ function useQueueMutation<TArgs>(fn: (args: TArgs) => Promise<QueuePlan>) {
     mutationFn: fn,
     onSuccess: (plan) => {
       client.setQueryData(keys.queue, plan);
+      client.invalidateQueries({ queryKey: ["suggestions"] });
     },
   });
 }

@@ -234,6 +234,32 @@ class ScanIndex:
         found.sort(key=lambda n: (-n.total_bytes, n.relpath))
         return [self._to_model(n) for n in found[:limit]]
 
+    def clean_folders(self) -> list[TreeNode]:
+        """Directories that live on exactly one disk, at the coarsest grain.
+
+        If `movies/Dune (2021)` is wholly on disk3, we report that folder and
+        not every file inside it. Split parents are descended into so a show
+        that is scattered can still yield a clean season.
+        """
+        found: list[_Node] = []
+
+        def walk(node: _Node, at_root: bool) -> None:
+            if not node.is_dir:
+                return
+            if at_root:
+                for child in node.children.values():
+                    walk(child, False)
+                return
+            if len(node.per_disk) == 1:
+                found.append(node)
+                return
+            for child in node.children.values():
+                walk(child, False)
+
+        walk(self._root_node, True)
+        found.sort(key=lambda n: (-n.total_bytes, n.relpath))
+        return [self._to_model(n) for n in found]
+
     def summary(self) -> ScanSummary:
         root = self._root_node
         return ScanSummary(

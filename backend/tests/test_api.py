@@ -32,7 +32,7 @@ def test_scan_normalises_a_pasted_disk_path(client) -> None:
 
 
 def test_scan_views_are_unavailable_until_something_is_indexed(client) -> None:
-    for path in ("/api/tree", "/api/duplicates", "/api/fragmented", "/api/queue/preview"):
+    for path in ("/api/tree", "/api/duplicates", "/api/fragmented", "/api/queue/preview", "/api/suggest"):
         response = (
             client.post(path, json={"source_relpath": "x", "target_disk": "disk1"})
             if path.endswith("preview")
@@ -427,3 +427,30 @@ def test_a_finished_job_disappears_from_the_queue(client) -> None:
     job.status = JobStatus.DONE
 
     assert client.get("/api/queue").json()["jobs"] == []
+
+
+def test_suggestions_only_offer_clean_folders(client) -> None:
+    scan(client)
+    body = client.get("/api/suggest").json()
+    assert body["balanced"] is False
+    assert body["suggestions"]
+    assert all(s["from_disk"] != s["target_disk"] for s in body["suggestions"])
+    assert all(s["move_bytes"] > 0 for s in body["suggestions"])
+    assert all(s["source_relpath"].count("/") == 1 for s in body["suggestions"])
+    assert all("/Season" not in s["source_relpath"] for s in body["suggestions"])
+
+
+def test_hiding_a_folder_drops_it_from_later_suggestions(client) -> None:
+    scan(client)
+    first = client.get("/api/suggest").json()["suggestions"][0]
+    hidden = client.post("/api/suggest/hide", json={"relpath": first["source_relpath"]}).json()
+    assert all(s["source_relpath"] != first["source_relpath"] for s in hidden["suggestions"])
+
+
+def test_skipping_a_folder_is_a_query_param_not_a_permanent_hide(client) -> None:
+    scan(client)
+    first = client.get("/api/suggest").json()["suggestions"][0]
+    skipped = client.get("/api/suggest", params={"exclude": first["source_relpath"]}).json()
+    assert all(s["source_relpath"] != first["source_relpath"] for s in skipped["suggestions"])
+    again = client.get("/api/suggest").json()
+    assert any(s["source_relpath"] == first["source_relpath"] for s in again["suggestions"])

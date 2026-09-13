@@ -23,12 +23,15 @@ from .models import (
     Job,
     JobStatus,
     ScanSummary,
+    SuggestionSet,
 )
 from .planner import Planner, detect_conflicts
 from .scan import ScanIndex, normalise_root, run_scan
+from .suggest import suggest as build_suggestions
 
 SETTINGS_KEY = "connection"
 ACTIVE_SCAN_KEY = "active_scan"
+HIDDEN_SUGGESTIONS_KEY = "hidden_suggestions"
 
 
 class ScanBusy(RuntimeError):
@@ -274,6 +277,30 @@ class Service:
 
     def persist_jobs(self) -> None:
         self._persist_jobs()
+
+    def hidden_suggestions(self) -> list[str]:
+        stored = db.get_setting(HIDDEN_SUGGESTIONS_KEY) or []
+        return [str(p) for p in stored] if isinstance(stored, list) else []
+
+    def hide_suggestion(self, relpath: str) -> list[str]:
+        hidden = self.hidden_suggestions()
+        path = relpath.strip("/")
+        if path and path not in hidden:
+            hidden.append(path)
+            db.set_setting(HIDDEN_SUGGESTIONS_KEY, hidden)
+        return hidden
+
+    def suggestions(self, exclude: list[str] | None = None, limit: int = 8) -> SuggestionSet:
+        if self.index is None:
+            raise StorageError("run a scan before asking for suggestions")
+        return build_suggestions(
+            self.index,
+            self.planner,
+            self.path_for,
+            exclude=exclude,
+            hidden=self.hidden_suggestions(),
+            limit=limit,
+        )
 
     # --- startup restore --------------------------------------------------
 

@@ -174,8 +174,12 @@ function FolderSummary({
   node: TreeNode;
   selectedDisk: string | null;
 }) {
+  const label = node.relpath ? node.name : "this scan";
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-zinc-800/80 bg-zinc-900/40 px-4 py-2.5">
+      <span className="text-xs text-zinc-500">
+        All of <span className="font-medium text-zinc-300">{label}</span>
+      </span>
       <span className="tnum text-sm font-medium text-zinc-200">{bytes(node.total_bytes)}</span>
       <Tooltip
         content={

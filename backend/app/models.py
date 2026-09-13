@@ -192,6 +192,28 @@ class QueuePlan(BaseModel):
     blocked_reasons: list[str] = Field(default_factory=list)
 
 
+class Suggestion(BaseModel):
+    """A clean folder move that would even out free space."""
+
+    source_relpath: str
+    source_name: str
+    from_disk: str
+    target_disk: str
+    move_bytes: int
+    move_files: int
+    disks_after: dict[str, DiskProjection]
+    #: How much this move shrinks max(free) - min(free).
+    spread_improvement: int = 0
+
+
+class SuggestionSet(BaseModel):
+    balanced: bool
+    headline: str
+    spread_bytes: int
+    mean_free_bytes: int
+    suggestions: list[Suggestion] = Field(default_factory=list)
+
+
 class OpKind(str, Enum):
     MOVE = "move"
     DELETE = "delete"

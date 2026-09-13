@@ -16,6 +16,7 @@ import type {
   TreeNode,
   TreeResponse,
   ConflictMode,
+  SuggestionSet,
 } from "./types";
 
 export class ApiError extends Error {
@@ -80,6 +81,13 @@ export const api = {
   },
   fragmented: (under = "") =>
     request<TreeNode[]>(`/fragmented?under=${encodeURIComponent(under)}`),
+  suggestions: (exclude: string[] = []) => {
+    const query = new URLSearchParams();
+    for (const path of exclude) query.append("exclude", path);
+    const suffix = query.toString() ? `?${query}` : "";
+    return request<SuggestionSet>(`/suggest${suffix}`);
+  },
+  hideSuggestion: (relpath: string) => post<SuggestionSet>("/suggest/hide", { relpath }),
 
   queue: () => request<QueuePlan>("/queue"),
   previewJob: (source_relpath: string, target_disk: string) =>

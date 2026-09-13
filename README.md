@@ -21,6 +21,10 @@ an 888 MB copy, and exactly what your disks would look like after consolidating.
 - **Plan as you go.** Queue several consolidations and the array view shows a
   running projection of every disk after every job, so you can see where you
   will end up before committing to anything.
+- **Balance suggestions.** When free space drifts apart, a strip under the array
+  view proposes 3–8 whole folders that already live on one disk. Add, skip, or
+  hide — nothing is queued or run unless you say so. Split folders are left
+  for Consolidate, so a suggestion never invents a conflict decision.
 - **Explicit conflict decisions.** Any file that exists on more than one disk
   needs a decision — keep larger, keep smaller, keep a named disk, keep both
   (renamed), or leave it alone. A job cannot run until every conflict has an
