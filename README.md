@@ -207,3 +207,7 @@ Everything is environment-driven with a `SHUFFLER_` prefix; see
 | `SHUFFLER_MOUNT_ROOT` | `/mnt` | Where the numbered disks live |
 | `SHUFFLER_RESERVE_BYTES` | 10 GiB | Free space to keep on every disk |
 | `SHUFFLER_DB_PATH` | `./data/shuffler.db` | Scans, queue and settings |
+
+## Licence
+
+[MIT](LICENSE)
