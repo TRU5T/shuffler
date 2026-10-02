@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Shuffler</Name>
+  <Repository>ghcr.io/tru5t/shuffler:latest</Repository>
+  <Registry>https://github.com/TRU5T/shuffler/pkgs/container/shuffler</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/TRU5T/shuffler/issues</Support>
+  <Project>https://github.com/TRU5T/shuffler</Project>
+  <Overview>See where a folder is scattered across your array's data disks, what is duplicated between them, and what your free space would look like after consolidating it onto one disk. Then perform the moves safely: copy, verify, delete the source, prune empty folders.[br][br]
+Map each data disk individually below, keeping its name (/mnt/disk1 to /mnt/disk1 and so on). Leave unused disk slots blank, and use "Add another Path" for disks beyond disk8. Do NOT map /mnt/user: moving files between disks through the user share can destroy them, and Shuffler refuses those paths anyway.[br][br]
+Dry run is on by default. A live run also requires typing a confirmation phrase in the UI.</Overview>
+  <Category>Tools: Productivity:</Category>
+  <WebUI>http://[IP]:[PORT:8756]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/TRU5T/shuffler/main/unraid/shuffler.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/TRU5T/shuffler/main/assets/logo.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>Only map individual data disks (/mnt/diskN). Never map /mnt/user or /mnt/user0.</Requires>
+
+  <Config Name="WebUI Port" Target="8756" Default="8756" Mode="tcp" Description="Port for the web interface." Type="Port" Display="always" Required="true" Mask="false">8756</Config>
+  <Config Name="Config" Target="/config" Default="/mnt/user/appdata/shuffler" Mode="rw" Description="Holds the SQLite database: scans, the queue and settings." Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/shuffler</Config>
+
+  <Config Name="Disk 1" Target="/mnt/disk1" Default="/mnt/disk1" Mode="rw" Description="Data disk 1. Container path must match the host path." Type="Path" Display="always" Required="true" Mask="false">/mnt/disk1</Config>
+  <Config Name="Disk 2" Target="/mnt/disk2" Default="/mnt/disk2" Mode="rw" Description="Data disk 2. Container path must match the host path." Type="Path" Display="always" Required="true" Mask="false">/mnt/disk2</Config>
+  <Config Name="Disk 3" Target="/mnt/disk3" Default="" Mode="rw" Description="Data disk 3. Set to /mnt/disk3 if you have it, otherwise leave blank." Type="Path" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Disk 4" Target="/mnt/disk4" Default="" Mode="rw" Description="Data disk 4. Set to /mnt/disk4 if you have it, otherwise leave blank." Type="Path" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Disk 5" Target="/mnt/disk5" Default="" Mode="rw" Description="Data disk 5. Set to /mnt/disk5 if you have it, otherwise leave blank." Type="Path" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Disk 6" Target="/mnt/disk6" Default="" Mode="rw" Description="Data disk 6. Set to /mnt/disk6 if you have it, otherwise leave blank." Type="Path" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Disk 7" Target="/mnt/disk7" Default="" Mode="rw" Description="Data disk 7. Set to /mnt/disk7 if you have it, otherwise leave blank." Type="Path" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Disk 8" Target="/mnt/disk8" Default="" Mode="rw" Description="Data disk 8. Set to /mnt/disk8 if you have it, otherwise leave blank." Type="Path" Display="always" Required="false" Mask="false"></Config>
+
+  <Config Name="Dry run by default" Target="SHUFFLER_DRY_RUN" Default="true|false" Mode="" Description="When true, runs default to dry (nothing is written). Live runs always need confirmation either way." Type="Variable" Display="always" Required="true" Mask="false">true</Config>
+  <Config Name="Free space reserve (bytes)" Target="SHUFFLER_RESERVE_BYTES" Default="10737418240" Mode="" Description="Free space to keep on every disk. Jobs that would go below it are blocked. Default 10 GiB." Type="Variable" Display="always" Required="false" Mask="false">10737418240</Config>
+  <Config Name="Storage backend" Target="SHUFFLER_STORAGE_BACKEND" Default="local" Mode="" Description="Leave as local: the disks are mapped straight into the container." Type="Variable" Display="advanced-hide" Required="true" Mask="false">local</Config>
+  <Config Name="Mount root" Target="SHUFFLER_MOUNT_ROOT" Default="/mnt" Mode="" Description="Where the disk paths are mapped inside the container." Type="Variable" Display="advanced-hide" Required="true" Mask="false">/mnt</Config>
+  <Config Name="Database path" Target="SHUFFLER_DB_PATH" Default="/config/shuffler.db" Mode="" Description="SQLite database location inside the container." Type="Variable" Display="advanced-hide" Required="true" Mask="false">/config/shuffler.db</Config>
+</Container>

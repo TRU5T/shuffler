@@ -12,6 +12,12 @@ RUN npm run build
 # --- stage 2: runtime ------------------------------------------------------
 FROM python:3.12-slim AS runtime
 
+LABEL org.opencontainers.image.title="Shuffler" \
+      org.opencontainers.image.description="See where a folder is scattered across Unraid data disks and consolidate it safely" \
+      org.opencontainers.image.source="https://github.com/TRU5T/shuffler" \
+      net.unraid.docker.webui="http://[IP]:[PORT:8756]/" \
+      net.unraid.docker.icon="https://raw.githubusercontent.com/TRU5T/shuffler/main/assets/logo.png"
+
 # findutils and coreutils give the local backend the same GNU tools the SSH
 # backend relies on remotely; rsync is handy for manual recovery.
 RUN apt-get update \

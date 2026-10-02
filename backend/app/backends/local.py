@@ -18,6 +18,14 @@ COPY_CHUNK = 4 * 1024 * 1024
 _SPARSE_SEEK = hasattr(os, "SEEK_DATA") and hasattr(os, "SEEK_HOLE")
 
 
+def _chown_quietly(path: str, uid: int, gid: int) -> None:
+    """Only root can give a file away; as anyone else this is a no-op."""
+    try:
+        os.chown(path, uid, gid, follow_symlinks=False)
+    except (PermissionError, NotImplementedError):
+        pass
+
+
 class LocalBackend(StorageBackend):
     def __init__(
         self,
@@ -137,7 +145,7 @@ class LocalBackend(StorageBackend):
     def copy_file(self, src: str, dst: str, size: int, progress: CopyProgress | None = None) -> int:
         assert_safe_path(src)
         assert_safe_path(dst)
-        os.makedirs(posixpath.dirname(dst), exist_ok=True)
+        self._makedirs_owned_like(posixpath.dirname(dst), posixpath.dirname(src))
         # Copy to a temporary name so an interrupted run never leaves a partial
         # file that looks complete to the next scan.
         tmp = f"{dst}.shuffler-partial"
@@ -150,6 +158,8 @@ class LocalBackend(StorageBackend):
                 fdst.flush()
                 os.fsync(fdst.fileno())
             shutil.copystat(src, tmp)
+            src_st = os.stat(src)
+            _chown_quietly(tmp, src_st.st_uid, src_st.st_gid)
             os.replace(tmp, dst)
         except OSError as exc:
             if os.path.exists(tmp):
@@ -159,6 +169,32 @@ class LocalBackend(StorageBackend):
                     pass
             raise StorageError(f"copy failed for {src} -> {dst}: {exc}") from exc
         return os.stat(dst).st_size
+
+    @staticmethod
+    def _makedirs_owned_like(path: str, like: str) -> None:
+        """Create `path` and any missing parents, owned like the directory `like`.
+
+        The container runs as root, so without this every directory it creates
+        would be root-owned rather than the share's usual nobody:users.
+        """
+        missing: list[str] = []
+        current = path
+        while current and current != "/" and not os.path.isdir(current):
+            missing.append(current)
+            current = posixpath.dirname(current)
+        os.makedirs(path, exist_ok=True)
+        if not missing:
+            return
+        try:
+            st = os.stat(like)
+        except OSError:
+            return
+        for directory in missing:
+            _chown_quietly(directory, st.st_uid, st.st_gid)
+            try:
+                os.chmod(directory, st.st_mode & 0o7777)
+            except OSError:
+                pass
 
     @staticmethod
     def _copy_extents(fsrc, fdst, size: int, progress: CopyProgress | None) -> None:

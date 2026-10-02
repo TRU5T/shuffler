@@ -1,4 +1,12 @@
-# Shuffler
+<p align="center">
+  <img src="assets/logo.svg" alt="Shuffler logo" width="128" height="128">
+</p>
+
+<h1 align="center">Shuffler</h1>
+
+<p align="center">
+  <a href="https://github.com/TRU5T/shuffler/actions/workflows/ci.yml"><img src="https://github.com/TRU5T/shuffler/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+</p>
 
 A web tool for Unraid arrays that answers one question: **where is this folder
 scattered, what is duplicated, and what happens to my free space if I
@@ -60,7 +68,36 @@ an 888 MB copy, and exactly what your disks would look like after consolidating.
 
 ## Running it
 
-### Docker on Unraid (production)
+### Unraid (recommended)
+
+Every push to `main` publishes the image to
+`ghcr.io/tru5t/shuffler:latest` via GitHub Actions. To install it from the
+template in [`unraid/shuffler.xml`](unraid/shuffler.xml):
+
+1. On the Unraid terminal (or **Tools → Terminal**), fetch the template into
+   your user templates:
+
+   ```bash
+   wget -O /boot/config/plugins/dockerMan/templates-user/my-Shuffler.xml \
+     https://raw.githubusercontent.com/TRU5T/shuffler/main/unraid/shuffler.xml
+   ```
+
+   Or copy the file there over the `flash` SMB share
+   (`flash/config/plugins/dockerMan/templates-user/my-Shuffler.xml`).
+2. Go to **Docker → Add Container**, and pick **Shuffler** from the
+   **Template** dropdown.
+3. Disk 1 and Disk 2 are pre-filled. Set Disk 3–8 to `/mnt/disk3` …
+   `/mnt/disk8` for the disks you have and leave the rest blank; use
+   **Add another Path** for anything past disk8, keeping the container path
+   identical to the host path. Do **not** map `/mnt/user`.
+4. **Apply**, then open the WebUI from the container's icon menu
+   (`http://<tower>:8756`).
+
+Files the container copies keep their original owner, group and permissions,
+and new folders take theirs from the source folder, so shares stay
+`nobody:users` even though the container runs as root.
+
+### Docker Compose
 
 Bind each data disk in individually, keeping its name. Do **not** mount
 `/mnt/user`.
@@ -120,7 +157,7 @@ three-way conflict, and a folder that is already consolidated.
 .venv/bin/pytest
 ```
 
-139 tests covering path normalisation, index aggregation, duplicate
+153 tests covering path normalisation, index aggregation, duplicate
 classification, every conflict resolution mode, operation ordering, queue
 projection arithmetic, the reserve and overlap guards, dry-run inertness, live
 moves with pruning, verification failure leaving sources intact, the `/mnt/user`
@@ -149,6 +186,9 @@ scripts/
   make_fixtures.py   synthetic sparse-file array
   dev-fixtures.sh    run everything against it
   smoke.py           end-to-end scan → plan → execute check
+unraid/shuffler.xml  Unraid Docker template
+assets/              logo (SVG, and the PNG Unraid uses as the icon)
+.github/workflows/   tests, then build and publish the image to GHCR
 ```
 
 The `StorageBackend` split is the load-bearing decision: SSH for development,

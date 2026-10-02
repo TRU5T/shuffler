@@ -13,3 +13,4 @@ data/
 
 .env
 .DS_Store
+*.tsbuildinfo

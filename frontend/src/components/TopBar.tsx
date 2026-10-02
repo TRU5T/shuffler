@@ -73,13 +73,7 @@ export function TopBar({
     <header className="sticky top-0 z-30 border-b border-zinc-800/80 bg-zinc-950/85 backdrop-blur">
       <div className="flex flex-wrap items-center gap-3 px-4 py-2.5">
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-zinc-900 ring-1 ring-zinc-800">
-            <svg viewBox="0 0 32 32" className="size-5" aria-hidden>
-              <rect x="6" y="8" width="20" height="4" rx="2" className="fill-amber-500" />
-              <rect x="6" y="14" width="13" height="4" rx="2" className="fill-sky-400" />
-              <rect x="6" y="20" width="17" height="4" rx="2" className="fill-emerald-400" />
-            </svg>
-          </div>
+          <img src="/favicon.svg" alt="" aria-hidden className="size-8" />
           <div className="leading-tight">
             <h1 className="text-sm font-semibold text-zinc-100">Shuffler</h1>
             <p className="text-[10px] uppercase tracking-wider text-zinc-500">Unraid disks</p>

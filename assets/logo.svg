@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#27272a"/>
+      <stop offset="1" stop-color="#18181b"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7dd3fc"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#86efac"/>
+      <stop offset="1" stop-color="#4ade80"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="6" y="6" width="500" height="500" rx="106" fill="none" stroke="#3f3f46" stroke-width="4"/>
+
+  <!-- three data disks: empty track, used space, activity LED -->
+  <g>
+    <rect x="72" y="120" width="272" height="64" rx="20" fill="#3f3f46"/>
+    <rect x="72" y="120" width="236" height="64" rx="20" fill="url(#amber)"/>
+
+    <rect x="72" y="224" width="272" height="64" rx="20" fill="#3f3f46"/>
+    <rect x="72" y="224" width="112" height="64" rx="20" fill="url(#sky)"/>
+
+    <rect x="72" y="328" width="272" height="64" rx="20" fill="#3f3f46"/>
+    <rect x="72" y="328" width="184" height="64" rx="20" fill="url(#green)"/>
+  </g>
+
+  <!-- data moving from the full disk down to the emptier one -->
+  <g fill="none" stroke="#fafafa" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M372 152 C 448 152, 448 256, 384 256"/>
+    <path d="M412 226 L 382 256 L 412 286"/>
+  </g>
+</svg>

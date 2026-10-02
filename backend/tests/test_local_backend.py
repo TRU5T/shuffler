@@ -113,6 +113,27 @@ def test_copy_creates_missing_destination_directories(local: LocalBackend, disks
     assert dst.is_file()
 
 
+def test_created_directories_and_the_copy_take_ownership_from_the_source(
+    local: LocalBackend, disks: Path
+) -> None:
+    src_dir = disks / "disk1/Show/Season 01"
+    src_dir.mkdir(parents=True)
+    os.chmod(src_dir, 0o2775)
+    src = src_dir / "x.mkv"
+    src.write_bytes(b"data")
+    dst = disks / "disk2/Show/Season 01/x.mkv"
+
+    local.copy_file(str(src), str(dst), 4)
+
+    for created in (dst.parent, dst.parent.parent):
+        assert created.stat().st_mode & 0o7777 == 0o2775
+        assert (created.stat().st_uid, created.stat().st_gid) == (
+            src_dir.stat().st_uid,
+            src_dir.stat().st_gid,
+        )
+    assert (dst.stat().st_uid, dst.stat().st_gid) == (src.stat().st_uid, src.stat().st_gid)
+
+
 def test_no_partial_file_survives_a_successful_copy(local: LocalBackend, disks: Path) -> None:
     src = disks / "disk1/x.mkv"
     src.write_bytes(os.urandom(1024))
