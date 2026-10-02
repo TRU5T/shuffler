@@ -81,6 +81,8 @@ class ScanProgress(BaseModel):
     disk_count: int = 0
     files: int = 0
     bytes: int = 0
+    current_path: str = ""
+    last_file_at: float = 0
     started_at: float
 
 

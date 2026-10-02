@@ -9,6 +9,7 @@ index entry with two disk copies, which is exactly the duplicate signal we want.
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import uuid
 from collections.abc import Callable, Iterator
@@ -303,15 +304,17 @@ def run_scan(
     files: dict[str, dict[str, FileEntry]] = {}
     files_seen = 0
     bytes_seen = 0
-    reported = -10_000
+    last_report_at = 0.0
+    cursor = {"disk": "", "done": 0, "path": "", "last_file_at": started_at}
 
     def report(phase: str, disk: str, disks_done: int, *, force: bool = False) -> None:
-        nonlocal reported
+        nonlocal last_report_at
         if on_progress is None:
             return
-        if not force and files_seen - reported < 250:
+        now = time.monotonic()
+        if not force and now - last_report_at < 0.5:
             return
-        reported = files_seen
+        last_report_at = now
         on_progress(
             ScanProgress(
                 root=subpath,
@@ -321,24 +324,56 @@ def run_scan(
                 disk_count=len(disk_list),
                 files=files_seen,
                 bytes=bytes_seen,
+                current_path=cursor["path"],
+                last_file_at=cursor["last_file_at"],
                 started_at=started_at,
             )
         )
 
-    for index, disk in enumerate(disk_list):
-        log.info("scan %s: reading %s (%d/%d)", label, disk.name, index + 1, len(disk_list))
-        report("walking", disk.name, index, force=True)
-        disk_files = 0
-        for relpath, entry in backend.walk(disk.name, subpath):
-            files.setdefault(relpath, {})[disk.name] = entry
-            files_seen += 1
-            bytes_seen += entry.size
-            disk_files += 1
-            report("walking", disk.name, index)
-        if disk_files == 0:
-            log.info("scan %s: %s does not have this path", label, disk.name)
-        else:
-            log.info("scan %s: %s has %d files", label, disk.name, disk_files)
+    # A disk that is spun down, or one huge directory, produces no files for a
+    # while. Keep saying where we are so the page and the log don't go quiet.
+    stop = threading.Event()
+
+    seen_at_last_beat = -1
+
+    def heartbeat() -> None:
+        nonlocal seen_at_last_beat
+        while not stop.wait(5):
+            if files_seen == seen_at_last_beat:
+                log.info(
+                    "scan %s: still waiting on %s, %d files so far%s",
+                    label,
+                    cursor["disk"] or "disks",
+                    files_seen,
+                    f", last {cursor['path']}" if cursor["path"] else "",
+                )
+            seen_at_last_beat = files_seen
+            report("walking", str(cursor["disk"]), int(cursor["done"]), force=True)
+
+    beater = threading.Thread(target=heartbeat, name="scan-heartbeat", daemon=True)
+    beater.start()
+    try:
+        for index, disk in enumerate(disk_list):
+            cursor["disk"] = disk.name
+            cursor["done"] = index
+            log.info("scan %s: reading %s (%d/%d)", label, disk.name, index + 1, len(disk_list))
+            report("walking", disk.name, index, force=True)
+            disk_files = 0
+            for relpath, entry in backend.walk(disk.name, subpath):
+                files.setdefault(relpath, {})[disk.name] = entry
+                files_seen += 1
+                bytes_seen += entry.size
+                disk_files += 1
+                cursor["path"] = relpath
+                cursor["last_file_at"] = time.time()
+                report("walking", disk.name, index)
+            if disk_files == 0:
+                log.info("scan %s: %s does not have this path", label, disk.name)
+            else:
+                log.info("scan %s: %s has %d files", label, disk.name, disk_files)
+    finally:
+        stop.set()
+        beater.join(timeout=1)
 
     report("indexing", "", len(disk_list), force=True)
     return ScanIndex(

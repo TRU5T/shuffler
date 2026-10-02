@@ -155,6 +155,8 @@ export function useScanMutation() {
           disk_count: 0,
           files: 0,
           bytes: 0,
+          current_path: "",
+          last_file_at: Date.now() / 1000,
           started_at: Date.now() / 1000,
         },
       }));

@@ -60,6 +60,8 @@ export interface ScanProgress {
   disk_count: number;
   files: number;
   bytes: number;
+  current_path: string;
+  last_file_at: number;
   started_at: number;
 }
 

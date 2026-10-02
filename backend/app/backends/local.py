@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import posixpath
 import shutil
+import subprocess
 from collections.abc import Iterator
 
 from ..models import Disk, FileEntry
@@ -16,6 +18,24 @@ COPY_CHUNK = 4 * 1024 * 1024
 #: copy falls back to reading every byte, which is correct but slower on sparse
 #: sources.
 _SPARSE_SEEK = hasattr(os, "SEEK_DATA") and hasattr(os, "SEEK_HOLE")
+
+log = logging.getLogger("shuffler")
+
+#: GNU find interprets these backslash escapes itself. A real NUL cannot be
+#: passed in an argument, so this stays a two-character sequence.
+_FIND_PRINTF = r"%s\t%Ts\t%P\0"
+
+
+def _parse_find_record(record: bytes) -> tuple[str, FileEntry] | None:
+    text = record.decode("utf-8", "surrogateescape")
+    size_s, sep, rest = text.partition("\t")
+    mtime_s, sep2, relpath = rest.partition("\t")
+    if not sep or not sep2 or not relpath:
+        return None
+    try:
+        return relpath, FileEntry(size=int(size_s), mtime=float(mtime_s))
+    except ValueError:
+        return None
 
 
 def _chown_quietly(path: str, uid: int, gid: int) -> None:
@@ -105,23 +125,69 @@ class LocalBackend(StorageBackend):
         root = self.full_path(disk, subpath)
         if not os.path.isdir(root):
             return
+        try:
+            yield from self._walk_find(root)
+        except (FileNotFoundError, OSError) as exc:
+            log.warning("find failed for %s (%s); walking in Python", root, exc)
+            yield from self._walk_python(root)
+
+    @staticmethod
+    def _walk_find(root: str) -> Iterator[tuple[str, FileEntry]]:
+        """One GNU find per disk, streaming. Same approach as the SSH backend.
+
+        Listing a directory fully before counting its files is what made a scan
+        look frozen at the start of a disk: nothing was reported until that
+        listing returned.
+        """
+        proc = subprocess.Popen(
+            ["find", root, "-type", "f", "-printf", _FIND_PRINTF],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        assert proc.stdout is not None
+        try:
+            pending = b""
+            while True:
+                chunk = proc.stdout.read(1024 * 1024)
+                if not chunk:
+                    break
+                pending += chunk
+                while True:
+                    cut = pending.find(b"\0")
+                    if cut < 0:
+                        break
+                    record, pending = pending[:cut], pending[cut + 1 :]
+                    parsed = _parse_find_record(record)
+                    if parsed is not None:
+                        yield parsed
+            rc = proc.wait()
+            if rc not in (0, 1):
+                log.warning("find on %s exited %s", root, rc)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait()
+
+    @staticmethod
+    def _walk_python(root: str) -> Iterator[tuple[str, FileEntry]]:
         prefix_len = len(root.rstrip("/")) + 1
         stack = [root]
         while stack:
             current = stack.pop()
             try:
-                entries = list(os.scandir(current))
+                entries = os.scandir(current)
             except OSError:
                 continue
-            for entry in entries:
-                try:
-                    if entry.is_dir(follow_symlinks=False):
-                        stack.append(entry.path)
-                    elif entry.is_file(follow_symlinks=False):
-                        st = entry.stat(follow_symlinks=False)
-                        yield entry.path[prefix_len:], FileEntry(size=st.st_size, mtime=st.st_mtime)
-                except OSError:
-                    continue
+            with entries:
+                for entry in entries:
+                    try:
+                        if entry.is_dir(follow_symlinks=False):
+                            stack.append(entry.path)
+                        elif entry.is_file(follow_symlinks=False):
+                            st = entry.stat(follow_symlinks=False)
+                            yield entry.path[prefix_len:], FileEntry(size=st.st_size, mtime=st.st_mtime)
+                    except OSError:
+                        continue
 
     def list_dir(self, path: str) -> list[tuple[str, bool]]:
         try:

@@ -287,15 +287,19 @@ function ScanBanner({ progress }: { progress: ScanProgress | null }) {
   }, []);
 
   const elapsed = progress ? Math.max(0, now / 1000 - progress.started_at) : 0;
+  const quietFor = progress?.last_file_at ? Math.max(0, now / 1000 - progress.last_file_at) : 0;
+  const waitingOnDisk = Boolean(progress?.phase === "walking" && progress.disk && quietFor >= 5);
   const headline = !progress
     ? "Starting scan"
     : progress.phase === "saving"
       ? "Saving the scan"
       : progress.phase === "indexing"
         ? "Building the index"
-        : progress.disk
-          ? `Reading ${progress.disk} (${progress.disks_done + 1} of ${progress.disk_count})`
-          : `Starting scan of ${progress.root || "/"}`;
+        : waitingOnDisk
+          ? `Waiting on ${progress.disk} (${Math.round(quietFor)}s since the last file)`
+          : progress.disk
+            ? `Reading ${progress.disk} (${progress.disks_done + 1} of ${progress.disk_count})`
+            : `Starting scan of ${progress.root || "/"}`;
 
   return (
     <section className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-sky-500/30 bg-sky-500/[0.06] px-4 py-3">
@@ -311,6 +315,11 @@ function ScanBanner({ progress }: { progress: ScanProgress | null }) {
             {bytes(progress.bytes)}
             {" · "}
             {duration(elapsed)}
+            {progress.current_path && (
+              <span className="block truncate text-xs text-zinc-500" title={progress.current_path}>
+                {progress.current_path}
+              </span>
+            )}
           </>
         ) : (
           "Waiting for the first disk"
