@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
-import type { ConflictMode, ProgressEvent, QueuePlan } from "@/lib/types";
+import type { ConflictMode, ProgressEvent, QueuePlan, ScanState } from "@/lib/types";
 
 export const keys = {
   health: ["health"] as const,
@@ -58,7 +58,13 @@ export function useDisks(enabled = true) {
 }
 
 export function useActiveScan() {
-  return useQuery({ queryKey: keys.scan, queryFn: api.activeScan });
+  return useQuery({
+    queryKey: keys.scan,
+    queryFn: api.activeScan,
+    // A scan blocks its own request, so this is the only way the page hears
+    // how far it has got. Idle the rest of the time.
+    refetchInterval: (query) => (query.state.data?.scanning ? 1000 : false),
+  });
 }
 
 export function useScanHistory() {
@@ -135,7 +141,30 @@ export function useScanMutation() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (root: string) => api.scan(root),
+    onMutate: (root) => {
+      // Flip scanning on before the server answers, so the page starts
+      // polling immediately instead of waiting for the scan to finish.
+      client.setQueryData<ScanState>(keys.scan, (current) => ({
+        scanning: true,
+        scan: current?.scan ?? null,
+        progress: {
+          root,
+          phase: "walking",
+          disk: "",
+          disks_done: 0,
+          disk_count: 0,
+          files: 0,
+          bytes: 0,
+          started_at: Date.now() / 1000,
+        },
+      }));
+    },
     onSuccess: () => invalidateScanViews(client),
+    onError: () => {
+      client.setQueryData<ScanState>(keys.scan, (current) =>
+        current ? { ...current, scanning: false, progress: null } : current,
+      );
+    },
   });
 }
 

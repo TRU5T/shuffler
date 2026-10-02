@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.scan import ScanIndex, normalise_root
+from app.scan import ScanIndex, normalise_root, run_scan
 
 
 @pytest.mark.parametrize(
@@ -126,3 +126,19 @@ def test_children_put_directories_first_then_largest(index: ScanIndex) -> None:
 def test_unknown_paths_return_nothing(index: ScanIndex) -> None:
     assert index.node("does/not/exist") is None
     assert index.children("does/not/exist") == []
+
+
+def test_a_scan_reports_progress_for_every_disk(backend) -> None:
+    seen: list = []
+    run_scan(backend, "data/media", on_progress=seen.append)
+
+    assert seen[0].phase == "walking"
+    assert seen[0].disk == "disk1"
+    assert seen[0].disk_count == 4
+    walked = [step.disk for step in seen if step.phase == "walking"]
+    assert walked[0] == "disk1"
+    assert "disk4" in walked
+    assert seen[-1].phase == "indexing"
+    assert seen[-1].files > 0
+    assert seen[-1].disks_done == 4
+    assert seen[-1].bytes > 0

@@ -8,9 +8,10 @@ index entry with two disk copies, which is exactly the duplicate signal we want.
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 
 from .backends.base import StorageBackend
@@ -20,9 +21,12 @@ from .models import (
     DuplicateGroup,
     DuplicateKind,
     FileEntry,
+    ScanProgress,
     ScanSummary,
     TreeNode,
 )
+
+log = logging.getLogger("shuffler")
 
 
 @dataclass
@@ -281,15 +285,62 @@ class ScanIndex:
                 yield (self.id, relpath, disk, entry.size, entry.mtime)
 
 
-def run_scan(backend: StorageBackend, root: str, disks: list[Disk] | None = None) -> ScanIndex:
+def run_scan(
+    backend: StorageBackend,
+    root: str,
+    disks: list[Disk] | None = None,
+    on_progress: Callable[[ScanProgress], None] | None = None,
+) -> ScanIndex:
     """Walk `root` on every data disk and build an index."""
     subpath = normalise_root(root)
     started = time.monotonic()
+    started_at = time.time()
     disk_list = disks if disks is not None else backend.list_disks()
+    label = subpath or "/"
+    names = ", ".join(disk.name for disk in disk_list) or "no disks"
+    log.info("scan starting: %s on %s", label, names)
+
     files: dict[str, dict[str, FileEntry]] = {}
-    for disk in disk_list:
+    files_seen = 0
+    bytes_seen = 0
+    reported = -10_000
+
+    def report(phase: str, disk: str, disks_done: int, *, force: bool = False) -> None:
+        nonlocal reported
+        if on_progress is None:
+            return
+        if not force and files_seen - reported < 250:
+            return
+        reported = files_seen
+        on_progress(
+            ScanProgress(
+                root=subpath,
+                phase=phase,  # type: ignore[arg-type]
+                disk=disk,
+                disks_done=disks_done,
+                disk_count=len(disk_list),
+                files=files_seen,
+                bytes=bytes_seen,
+                started_at=started_at,
+            )
+        )
+
+    for index, disk in enumerate(disk_list):
+        log.info("scan %s: reading %s (%d/%d)", label, disk.name, index + 1, len(disk_list))
+        report("walking", disk.name, index, force=True)
+        disk_files = 0
         for relpath, entry in backend.walk(disk.name, subpath):
             files.setdefault(relpath, {})[disk.name] = entry
+            files_seen += 1
+            bytes_seen += entry.size
+            disk_files += 1
+            report("walking", disk.name, index)
+        if disk_files == 0:
+            log.info("scan %s: %s does not have this path", label, disk.name)
+        else:
+            log.info("scan %s: %s has %d files", label, disk.name, disk_files)
+
+    report("indexing", "", len(disk_list), force=True)
     return ScanIndex(
         scan_id=uuid.uuid4().hex[:12],
         root=subpath,

@@ -71,6 +71,19 @@ class DuplicateGroup(BaseModel):
     wasted_bytes: int
 
 
+class ScanProgress(BaseModel):
+    """Live view of a scan that has not finished yet."""
+
+    root: str
+    phase: Literal["walking", "indexing", "saving"]
+    disk: str = ""
+    disks_done: int = 0
+    disk_count: int = 0
+    files: int = 0
+    bytes: int = 0
+    started_at: float
+
+
 class ScanSummary(BaseModel):
     id: str
     root: str

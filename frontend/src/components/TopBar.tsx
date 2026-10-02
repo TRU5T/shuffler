@@ -94,7 +94,7 @@ export function TopBar({
           <Tooltip content="Walk this path on every data disk and rebuild the index">
             <Button type="submit" variant="primary" loading={busy}>
               {!busy && <Radar className="size-4" />}
-              {scan ? "Rescan" : "Scan"}
+              {busy ? "Scanning" : scan ? "Rescan" : "Scan"}
             </Button>
           </Tooltip>
           {history && history.length > 0 && (

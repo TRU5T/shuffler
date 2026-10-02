@@ -7,6 +7,7 @@ resumes with the last scan and the queue you were building.
 from __future__ import annotations
 
 import json
+import logging
 import threading
 
 from . import db
@@ -22,6 +23,7 @@ from .models import (
     HealthResult,
     Job,
     JobStatus,
+    ScanProgress,
     ScanSummary,
     SuggestionSet,
 )
@@ -32,6 +34,7 @@ from .suggest import suggest as build_suggestions
 SETTINGS_KEY = "connection"
 ACTIVE_SCAN_KEY = "active_scan"
 HIDDEN_SUGGESTIONS_KEY = "hidden_suggestions"
+log = logging.getLogger("shuffler")
 
 
 class ScanBusy(RuntimeError):
@@ -49,6 +52,7 @@ class Service:
         self._backend_key: str = ""
         self._scan_lock = threading.Lock()
         self._scanning = False
+        self.progress: ScanProgress | None = None
         self._restore()
 
     # --- connection -------------------------------------------------------
@@ -190,9 +194,23 @@ class Service:
         self._scanning = True
         try:
             backend = self.backend()
-            index = run_scan(backend, root)
+
+            def remember(progress: ScanProgress) -> None:
+                self.progress = progress
+
+            index = run_scan(backend, root, on_progress=remember)
             self.index = index
             summary = index.summary()
+            self.progress = ScanProgress(
+                root=index.root,
+                phase="saving",
+                disks_done=len(index.disks),
+                disk_count=len(index.disks),
+                files=summary.total_files,
+                bytes=summary.total_bytes,
+                started_at=self.progress.started_at if self.progress else index.created_at,
+            )
+            log.info("scan %s: saving %d files", index.root or "/", summary.total_files)
             db.save_scan(
                 scan_id=index.id,
                 root=index.root,
@@ -210,9 +228,16 @@ class Service:
             )
             db.set_setting(ACTIVE_SCAN_KEY, index.id)
             self._prune_scan_history()
+            log.info(
+                "scan finished: %s, %d files in %.1fs",
+                index.root or "/",
+                summary.total_files,
+                index.duration_seconds,
+            )
             return summary
         finally:
             self._scanning = False
+            self.progress = None
             self._scan_lock.release()
 
     def _prune_scan_history(self, keep: int = 5) -> None:

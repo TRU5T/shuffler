@@ -29,8 +29,8 @@ import {
   useQueuePlan,
   useScanMutation,
 } from "@/hooks/useShuffler";
-import { bytes, count } from "@/lib/format";
-import type { TreeNode } from "@/lib/types";
+import { bytes, count, duration } from "@/lib/format";
+import type { ScanProgress, TreeNode } from "@/lib/types";
 
 export default function App() {
   const toast = useToast();
@@ -133,7 +133,11 @@ export default function App() {
             onSelectDisk={setSelectedDisk}
           />
 
-          {scan && !indexStale && <SuggestionsStrip enabled={Boolean(scan) && !running} />}
+          {scanState?.scanning && <ScanBanner progress={scanState.progress} />}
+
+          {scan && !indexStale && !scanState?.scanning && (
+            <SuggestionsStrip enabled={Boolean(scan) && !running} />
+          )}
 
           {indexStale && (
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-4 py-3">
@@ -164,7 +168,9 @@ export default function App() {
           )}
 
           {!scan ? (
-            <EmptyState connected={health?.ok ?? false} onOpenSettings={() => setSettingsOpen(true)} />
+            scanState?.scanning ? null : (
+              <EmptyState connected={health?.ok ?? false} onOpenSettings={() => setSettingsOpen(true)} />
+            )
           ) : (
             <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1.75fr)_minmax(24rem,1fr)]">
               <div className="flex min-h-[34rem] min-w-0 flex-col gap-4">
@@ -269,6 +275,47 @@ function FragmentedHint({
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+function ScanBanner({ progress }: { progress: ScanProgress | null }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const elapsed = progress ? Math.max(0, now / 1000 - progress.started_at) : 0;
+  const headline = !progress
+    ? "Starting scan"
+    : progress.phase === "saving"
+      ? "Saving the scan"
+      : progress.phase === "indexing"
+        ? "Building the index"
+        : progress.disk
+          ? `Reading ${progress.disk} (${progress.disks_done + 1} of ${progress.disk_count})`
+          : `Starting scan of ${progress.root || "/"}`;
+
+  return (
+    <section className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-sky-500/30 bg-sky-500/[0.06] px-4 py-3">
+      <RefreshCw className="size-4 shrink-0 animate-spin text-sky-400" />
+      <h2 className="text-sm font-medium text-zinc-100">{headline}</h2>
+      <p className="text-sm text-zinc-400">
+        {progress ? (
+          <>
+            <span className="text-zinc-200">{progress.root || "/"}</span>
+            {" · "}
+            {count(progress.files, "file")}
+            {" · "}
+            {bytes(progress.bytes)}
+            {" · "}
+            {duration(elapsed)}
+          </>
+        ) : (
+          "Waiting for the first disk"
+        )}
+      </p>
     </section>
   );
 }

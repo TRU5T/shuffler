@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from ..backends.base import StorageError
-from ..models import DuplicateGroup, ScanSummary, TreeNode
+from ..models import DuplicateGroup, ScanProgress, ScanSummary, TreeNode
 from ..scan import normalise_root
 from ..service import ScanBusy, service
 from .. import db
@@ -21,6 +21,7 @@ class ScanRequest(BaseModel):
 class ScanState(BaseModel):
     scanning: bool
     scan: ScanSummary | None = None
+    progress: ScanProgress | None = None
 
 
 class TreeResponse(BaseModel):
@@ -54,7 +55,11 @@ def start_scan(request: ScanRequest) -> ScanSummary:
 @router.get("/scan", response_model=ScanState)
 def active_scan() -> ScanState:
     index = service.index
-    return ScanState(scanning=service.scanning, scan=index.summary() if index else None)
+    return ScanState(
+        scanning=service.scanning,
+        scan=index.summary() if index else None,
+        progress=service.progress,
+    )
 
 
 @router.get("/scans", response_model=list[ScanSummary])

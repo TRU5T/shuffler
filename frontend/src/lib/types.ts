@@ -52,9 +52,21 @@ export interface ScanSummary {
   duration_seconds: number;
 }
 
+export interface ScanProgress {
+  root: string;
+  phase: "walking" | "indexing" | "saving";
+  disk: string;
+  disks_done: number;
+  disk_count: number;
+  files: number;
+  bytes: number;
+  started_at: number;
+}
+
 export interface ScanState {
   scanning: boolean;
   scan: ScanSummary | null;
+  progress: ScanProgress | null;
 }
 
 export interface TreeResponse {
